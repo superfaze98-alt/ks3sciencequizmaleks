@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KS3 Year 7 Science Quiz</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for a science-themed look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0fdf4; /* Light mint green background */
+        }
+        .quiz-container {
+            min-height: 50vh;
+        }
+        .answer-btn {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .answer-btn:hover:not(.correct):not(.incorrect) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+            background-color: #d1fae5; /* Lighten on hover */
+        }
+        .correct {
+            background-color: #34d399 !important; /* Green 400 */
+            color: white !important;
+            animation: pulse-correct 0.5s 2;
+        }
+        .incorrect {
+            background-color: #f87171 !important; /* Red 400 */
+            color: white !important;
+            animation: shake 0.5s;
+        }
+        /* Custom animations */
+        @keyframes pulse-correct {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 flex items-center justify-center min-h-screen">
+
+    <div id="game-container" class="bg-white rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-2xl border-4 border-teal-500 quiz-container">
+        
+        <h1 class="text-3xl sm:text-4xl font-bold text-teal-700 mb-6 text-center">
+            🔬 KS3 Year 7 Science Challenge
+        </h1>
+
+        <div id="score-display" class="text-lg font-semibold text-gray-600 mb-6 text-center">
+            Score: 0 / 0
+        </div>
+
+        <div id="quiz-area">
+            <!-- Start Screen -->
+            <div id="start-screen" class="text-center">
+                <p class="text-xl mb-6 text-gray-700">Test your knowledge on Cells, Forces, Energy, and Particles!</p>
+                <button id="start-btn" class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition duration-200 shadow-lg">
+                    Start Quiz
+                </button>
+            </div>
+
+            <!-- Question & Answers (Hidden until start) -->
+            <div id="question-card" class="hidden">
+                <p id="question-text" class="text-2xl font-semibold mb-6 p-4 bg-teal-100 rounded-lg text-teal-800 border-l-4 border-teal-500">
+                    Question goes here...
+                </p>
+                <div id="answers-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Answer buttons will be injected here -->
+                </div>
+                <div id="feedback-message" class="mt-6 text-center font-bold text-xl h-8"></div>
+                <button id="next-btn" class="mt-8 px-6 py-2 w-full bg-gray-400 text-white font-bold rounded-lg transition duration-200 shadow-md" disabled>
+                    Next Question
+                </button>
+            </div>
+            
+            <!-- Results Screen -->
+            <div id="results-screen" class="hidden text-center">
+                <h2 class="text-3xl font-bold text-indigo-600 mb-4">Quiz Finished!</h2>
+                <p id="final-score" class="text-2xl mb-8 text-gray-700">Your final score is...</p>
+                <button id="restart-btn" class="px-8 py-3 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition duration-200 shadow-lg">
+                    Play Again
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Data for the quiz: KS3 Year 7 Science questions
+        const quizData = [
+            {
+                question: "Which term describes the energy store found in food and fuel?",
+                options: ["Kinetic", "Thermal", "Chemical", "Gravitational"],
+                correctAnswer: "Chemical"
+            },
+            {
+                question: "What is the name of the central control structure in both plant and animal cells?",
+                options: ["Cytoplasm", "Cell Membrane", "Mitochondria", "Nucleus"],
+                correctAnswer: "Nucleus"
+            },
+            {
+                question: "What is the force that acts in the opposite direction to movement, often causing things to slow down?",
+                options: ["Tension", "Gravity", "Friction", "Lift"],
+                correctAnswer: "Friction"
+            },
+            {
+                question: "A substance made up of only one type of atom is called a/an...?",
+                options: ["Compound", "Mixture", "Element", "Molecule"],
+                correctAnswer: "Element"
+            },
+            {
+                question: "Which component of an electrical circuit is used to measure the current flowing through a wire?",
+                options: ["Voltmeter", "Ammeter", "Cell", "Resistor"],
+                correctAnswer: "Ammeter"
+            }
+        ];
+
+        // Global State Variables
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let answered = false;
+        
+        // DOM Elements
+        const startScreen = document.getElementById('start-screen');
+        const questionCard = document.getElementById('question-card');
+        const resultsScreen = document.getElementById('results-screen');
+        const questionText = document.getElementById('question-text');
+        const answersContainer = document.getElementById('answers-container');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const nextButton = document.getElementById('next-btn');
+        const scoreDisplay = document.getElementById('score-display');
+        const startButton = document.getElementById('start-btn');
+        const restartButton = document.getElementById('restart-btn');
+
+        // --- Core Functions ---
+
+        /**
+         * Initializes or resets the game state and starts the quiz.
+         */
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            answered = false;
+            
+            // Show the question card and hide others
+            startScreen.classList.add('hidden');
+            resultsScreen.classList.add('hidden');
+            questionCard.classList.remove('hidden');
+
+            updateScoreDisplay();
+            loadQuestion();
+        }
+
+        /**
+         * Loads the current question and populates the answer buttons.
+         */
+        function loadQuestion() {
+            if (currentQuestionIndex >= quizData.length) {
+                showResults();
+                return;
+            }
+
+            answered = false;
+            feedbackMessage.textContent = '';
+            nextButton.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+            nextButton.classList.add('bg-gray-400');
+            nextButton.disabled = true;
+
+            const currentQ = quizData[currentQuestionIndex];
+            questionText.textContent = `Q${currentQuestionIndex + 1}: ${currentQ.question}`;
+            answersContainer.innerHTML = '';
+
+            // Create buttons for each option
+            currentQ.options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.className = 'answer-btn px-4 py-3 bg-teal-50 text-teal-800 font-medium rounded-lg text-left hover:bg-teal-200 transition duration-150';
+                button.onclick = () => checkAnswer(button, option, currentQ.correctAnswer);
+                answersContainer.appendChild(button);
+            });
+        }
+
+        /**
+         * Checks the selected answer against the correct answer.
+         * @param {HTMLElement} selectedButton The button element that was clicked.
+         * @param {string} selectedAnswer The text of the selected option.
+         * @param {string} correctAnswer The correct answer text.
+         */
+        function checkAnswer(selectedButton, selectedAnswer, correctAnswer) {
+            if (answered) return; // Prevent double-clicking
+
+            answered = true;
+            const allButtons = answersContainer.querySelectorAll('button');
+            
+            // Disable all buttons immediately
+            allButtons.forEach(btn => btn.disabled = true);
+
+            if (selectedAnswer === correctAnswer) {
+                score++;
+                selectedButton.classList.add('correct');
+                feedbackMessage.textContent = 'Correct! Great work.';
+                feedbackMessage.classList.remove('text-red-500');
+                feedbackMessage.classList.add('text-green-600');
+            } else {
+                selectedButton.classList.add('incorrect');
+                feedbackMessage.textContent = 'Incorrect. Keep studying!';
+                feedbackMessage.classList.remove('text-green-600');
+                feedbackMessage.classList.add('text-red-500');
+                
+                // Highlight the correct answer
+                allButtons.forEach(btn => {
+                    if (btn.textContent === correctAnswer) {
+                        btn.classList.add('correct'); // Highlight the correct one
+                    }
+                });
+            }
+
+            updateScoreDisplay();
+            
+            // Enable Next button
+            nextButton.classList.remove('bg-gray-400');
+            nextButton.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+            nextButton.disabled = false;
+        }
+
+        /**
+         * Moves to the next question.
+         */
+        function nextQuestion() {
+            currentQuestionIndex++;
+            loadQuestion();
+        }
+
+        /**
+         * Updates the score display on the UI.
+         */
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = `Score: ${score} / ${quizData.length}`;
+        }
+
+        /**
+         * Displays the final results screen.
+         */
+        function showResults() {
+            questionCard.classList.add('hidden');
+            resultsScreen.classList.remove('hidden');
+            
+            const finalScoreText = document.getElementById('final-score');
+            finalScoreText.innerHTML = `You answered **${score}** out of **${quizData.length}** questions correctly!`;
+            
+            // Optionally, give a message based on performance
+            let message = '';
+            const percentage = (score / quizData.length) * 100;
+            if (percentage === 100) {
+                message = "🤯 Perfect score! You're a Science superstar!";
+            } else if (percentage >= 70) {
+                message = "🎉 Excellent work! You know your Year 7 Science!";
+            } else {
+                message = "👍 Good start! Keep reviewing those topics.";
+            }
+            finalScoreText.innerHTML += `<p class="mt-4 text-xl font-bold text-teal-600">${message}</p>`;
+        }
+
+        // --- Event Listeners and Initialization ---
+
+        startButton.addEventListener('click', startQuiz);
+        restartButton.addEventListener('click', startQuiz);
+        nextButton.addEventListener('click', nextQuestion);
+
+        // Initial setup
+        updateScoreDisplay();
+    </script>
+</body>
+</html>
